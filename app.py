@@ -168,7 +168,7 @@ with tab1:
     """)
 
 # -------------------------------------------------------------
-# TAB 2: 지출 상위 지역 히트맵
+# TAB 2: 지출 상위 지역 그룹형 막대 그래프 (개선된 버전)
 # -------------------------------------------------------------
 with tab2:
     st.header("2. 방문객수 상위 축제는 액티비티형으로, 호수문화권에 밀접할 것이다.")
@@ -176,7 +176,7 @@ with tab2:
     st.subheader("💡 가설 검증 프로세스")
     st.markdown("""
     - **가설 배경**: 주요 인기 축제들이 액티비티 요소를 담고 있으며, 호수문화권과 깊은 연관이 있을 것으로 추정했습니다.
-    - **시각화 방식**: 연도별 지출 비율이 가장 높은 상위 4개 지역을 추출하여 연도별 변화 양상을 히트맵(Heatmap)으로 시각화합니다.
+    - **시각화 방식**: 연도별 지출 비율이 가장 높은 상위 4개 지역을 연도별 그룹형 막대 그래프로 표현하여, 지역 간 실제 지출 비율의 차이를 직관적으로 비교합니다.
     """)
 
     query_2 = """
@@ -196,15 +196,37 @@ with tab2:
     df2 = run_query(query_2)
 
     if not df2.empty:
-        pivot_df = df2.pivot(index='지역', columns='연도', values='비율')
-        
-        fig2 = px.imshow(
-            pivot_df,
-            text_auto='.2f',  
-            color_continuous_scale='YlOrRd',
-            labels=dict(x="연도", y="지역", color="지출 비율 (%)"),
-            title="🔥 연도별 지출 비율 상위 4개 지역 분포 (히트맵)"
+        # [개선 핵심]: 히트맵 대신 직관적인 그룹형 막대 차트(px.bar) 적용
+        fig2 = px.bar(
+            df2,
+            x='연도',
+            y='비율',
+            color='지역',
+            barmode='group',       # 막대들을 연도별로 나란히 그룹화
+            text='비율',            # 막대 위에 수치 텍스트 표시
+            hover_data=['순위'],    # 마우스 오버(Hover) 시 순위 정보 추가 노출
+            title="📊 연도별 지출 상위 4개 지역 비율 비교 (그룹형 막대 차트)",
+            labels={"비율": "지출 비율 (%)", "연도": "연도", "지역": "지역", "순위": "순위"},
+            color_discrete_sequence=px.colors.qualitative.Set2  # 보기 편하고 정돈된 색상 테마 적용
         )
+        
+        # 막대 위 텍스트 서식 및 위치 조정 (예: '15.34%')
+        fig2.update_traces(
+            texttemplate='%{text:.2f}%', 
+            textposition='outside'
+        )
+        
+        # Y축 단위에 % 접미사 추가하고 레이아웃 정돈
+        fig2.update_layout(
+            yaxis=dict(ticksuffix="%"),
+            legend_title_text="지역명",
+            hovermode="x unified"
+        )
+        
+        # 텍스트가 위쪽 공간에서 잘리지 않도록 Y축 최대 범위를 여유 있게 조정
+        max_val = df2['비율'].max()
+        fig2.update_yaxes(range=[0, max_val * 1.15])
+        
         st.plotly_chart(fig2, use_container_width=True)
     else:
         st.info("조회된 지출 데이터가 없습니다.")
